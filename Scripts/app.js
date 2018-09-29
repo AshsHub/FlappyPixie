@@ -29,11 +29,6 @@ var app = new PIXI.Application(WIDTH, HEIGHT, {
 //Add canvas that Pixi created to the HTML document
 document.getElementById('Canvas').appendChild(app.view);
 
-const environmentRef = new Environment();
-const uiRef = new UI();
-const playerRef = new Player();
-const inputRef = new Input();
-
 let mousePos = {
     x: 0,
     y: 0
@@ -60,15 +55,18 @@ let style = new TextStyle({ //Used to create the style of font shown in the game
 let state, help, message, menuItemsArray = [],
     backgroundArray = [],
     gameItemsArray = [],
+    columnArray = [],
     points, pointsNum = 0,
     biggestPoints, endPoints, startButton, rotateAnim = false,
     rotateLeft = false,
     randomPipeTimer, pipeCount = 0,
     lastSpawn = 0,
-    player, gameOver = false,
-    jumpTimer = 10,
-    lastJump = 0,
-    canJump = true;
+    gameOver = false,
+    timer = 3,
+    timerText;
+
+const uiRef = new UI();
+const inputRef = new Input();
 
 if (!!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform) == false) {
     loader //Loads all the needed images from the image folder
@@ -89,6 +87,9 @@ if (!!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform) == false
         .on("progress", loadProgressHandler) //Gives loading progress
         .load(setup);
 }
+
+let columnRef;
+let playerRef;
 
 /**
  * Initial setup for the game. Creates background and sets up input
@@ -165,63 +166,28 @@ function menuInit() {
  * Creates player and preloads pipe asset
  */
 function gameInit() {
-    //points = createText("Points: ", WIDTH / 2, 60, 0.5, 0.5, true);
-    //app.stage.addChild(points);
-    randomPipeTimer = Math.floor(Math.random() * (2000 + 1000) + 2000);
+    randomPipeTimer = 1000;
     lastSpawn = Date.now();
 
-    playerRef.spawnPlayer();
+    playerRef = new Player();
+    app.stage.addChild(playerRef);
+
     uiRef.createUI();
+
     //gameOverInit();
+    timerText = createText("", WIDTH / 2, 60, 0.5, 0.5, true);
+    app.stage.addChild(timerText);
 
-    state = play;
-}
-
-/**
- * Displays end game message and clears redundent UI
- */
-/*function gameOverInit() {
-    let gameOverTimer = setInterval(function () {
-        if (state == play) {
-            timerText.text = gameTimer--;
-
-            if (gameTimer <= 0) {
-                canFish = false;
-                clearInterval(gameOverTimer);
-
-                for (let i = 0; i < gameItems.length; i++) {
-                    gameItems[i].visible = false;
-                }
-
-                biggestPoints.visible = false;
-
-                let endMessage = new Text("", style);
-                endMessage.position.set(WIDTH / 2, HEIGHT / 2);
-                endMessage.anchor.set(0.5, 0.5);
-                app.stage.addChild(endMessage);
-
-                if (biggestCatchNum > localStorage.getItem("highScore")) {
-                    endMessage.text = "CONGRATS! You beat your previous biggest catch with " + biggestCatchNum;
-                } else {
-                    endMessage.text = "Your biggest catch today was " + biggestCatchNum + "\n so you didn't beat your biggest catch of " + localStorage.getItem("highScore") + ", try again!"
-                }
-
-                endPoints.visible = true;
-                endPoints.position.set(WIDTH / 2, HEIGHT / 1.5);
-
-                if (pointsNum > localStorage.getItem("highScorePoints")) {
-                    localStorage.setItem("highScorePoints", pointsNum);
-                    endPoints.text = "CONGRATS! You beat your previous highscore with " + pointsNum;
-                } else {
-                    endPoints.text = "You have gained " + pointsNum + " points \n So you didn't beat your highest score of " + localStorage.getItem("highScorePoints") + ", try again!"
-                }
-
-                restartButton.visible = true;
-            }
+    let timerStart = setInterval(function () {
+        if (timer > 0) {
+            timerText.text = timer--;
+        }else{
+            clearInterval(timerStart);
+            timerText.text = "GO!";
+            state = play;
         }
     }, 1000);
-}*/
-
+}
 
 function gameLoop(delta) {
     state(delta);
@@ -232,20 +198,38 @@ function gameLoop(delta) {
  */
 function play() {
     playerRef.playerUpdate();
-    environmentRef.environmentUpdate();
-    if (Date.now() - lastSpawn > randomPipeTimer) {
-        randomPipeTimer = Math.floor(Math.random() * 700) + 1000;
-        lastSpawn = Date.now();
-        //environmentRef.spawnPipes();
+
+    if (!gameOver) {
+        environmentUpdate();
     }
 
-    //background parallax 
-    //background.position.set(-mousePos.x / 10 - 100, -mousePos.y / 10 - 10);
+    if (Date.now() - lastSpawn > randomPipeTimer && columnArray.length < 4) {
+        randomPipeTimer = 2000;
+        lastSpawn = Date.now();
 
-    //points.text = "Points: " + pointsNum;
-    //biggestPoints.text = "Highscore: " + localStorage.getItem("highScorePoints");
+        columnRef = new Column();
+        columnRef.position.set(WIDTH + 50, Math.floor(Math.random() * (HEIGHT / 10 + HEIGHT / 1.7) + HEIGHT / 10));
+        app.stage.addChildAt(columnRef, 2);
+        columnArray.push(columnRef);
+    }
 
-    //fishObj.checkFish();
+    if (!gameOver) {
+        for (let i = 0; i < columnArray.length; i++) {
+            columnArray[i].moveLeft();
+        }
+    }
+
+    points.text = "Points: " + playerRef._points;
+}
+
+function environmentUpdate() {
+    for (let i = 0; i < backgroundArray.length; i++) {
+        backgroundArray[i].x -= 0.5;
+
+        if (backgroundArray[i].x <= -WIDTH) {
+            backgroundArray[i].x = WIDTH - 5;
+        }
+    }
 }
 
 function pause() {
@@ -285,26 +269,6 @@ function lerp(start, end, amt) {
 
 function checkMove() {
     isMouseMove = false;
-}
-
-/**
- * aabb collision check
- * @param {PIXI.Sprite} rect1 
- * @param {PIXI.Sprite} rect2 
- */
-function collisionDetection(rect1, rect2) {
-    let rect1Bounds = rect1.getBounds();
-    let rect2Bounds = rect2.getBounds();
-
-    if (rect1 == hook) {
-        rect1Bounds.y = (rect1Bounds.y + (rect1Bounds.height - 5));
-
-        return rect1Bounds.x + rect1Bounds.width > rect2Bounds.x && rect1Bounds.x < rect2Bounds.x + rect2Bounds.width &&
-            rect1Bounds.y > rect2Bounds.y && rect1Bounds.y < rect2Bounds.y + rect2Bounds.height;
-    } else {
-        return rect1Bounds.x + rect1Bounds.width > rect2Bounds.x && rect1Bounds.x < rect2Bounds.x + rect2Bounds.width &&
-            rect1Bounds.y + rect1Bounds.height > rect2Bounds.y && rect1Bounds.y < rect2Bounds.y + rect2Bounds.height;
-    }
 }
 
 function loadProgressHandler(loader, resource) {

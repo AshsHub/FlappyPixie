@@ -2,20 +2,20 @@
 
 class Input {
     constructor() {
+        this._key_p = this.keyboard(80);
+        this._key_space = this.keyboard(32);
     }
 
     input() {
-        let key_p = this.keyboard(80);
-        let key_space = this.keyboard(32);
 
-        app.stage.on('pointerdown', function (eventData) {
-            if (state == play && canJump) {
-                canJump = false;
-                setTimeout(playerRef.resetJump, 300);
+        app.stage.on('pointerdown', (eventData) => {
+            if (state == play && playerRef._canJump) {
+                playerRef._canJump = false;
+                setTimeout(()=>playerRef.resetJump(), 300);
             }
         });
 
-        key_p.press = () => { //Used to show and hide the pause menu
+        this._key_p.press = () => { //Used to show and hide the pause menu
             if (state == play) {
                 state = pause;
                 clearInterval(inter); //stops fish from spawning
@@ -29,10 +29,10 @@ class Input {
             }
         }
 
-        key_space.press = () => {
-            if (state == play && canJump) {
-                canJump = false;
-                setTimeout(playerRef.resetJump, 300);
+        this._key_space.press = () => {
+            if (state == play && playerRef._canJump) {
+                playerRef._canJump = false;
+                setTimeout(()=>playerRef.resetJump(), 300);
             }
         }
     }

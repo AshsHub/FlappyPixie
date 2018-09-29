@@ -8,7 +8,6 @@ class UI {
 
         points = new Text("Points: ", style);
         points.position.set(20, 20);
-        gameItemsArray.push(points);
         app.stage.addChild(points);
 
         //pauseButton = new Sprite(pausedTex);
@@ -52,8 +51,9 @@ class UI {
                     menuItemsArray[i].visible = false;
                     biggestPoints.visible = false;
                     endPoints.visible = false;
-                    gameInit();
                 }
+                
+                gameInit();
             } else if (this == restartButton) {
                 location.reload();
             }
